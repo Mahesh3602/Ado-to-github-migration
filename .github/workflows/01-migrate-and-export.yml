@@ -14,7 +14,6 @@ jobs:
   migration_job:
     runs-on: ubuntu-latest
     env:
-      # These must match the names in your GitHub Repo Secrets
       GH_PAT: ${{ secrets.GH_PAT }}
       ADO_PAT: ${{ secrets.ADO_PAT }}
       GITHUB_ORG_NAME: ${{ secrets.ORG_NAME }}
@@ -30,46 +29,28 @@ jobs:
 
       - name: 🛠️ Get Org & Source IDs
         run: |
-          echo "--- 1. Fetching Org ID ---"
-          ORG_RAW=$(./scripts/01-get_org_id.sh 2>&1)
-          echo "$ORG_RAW"
-          # Extract ID using grep and jq
-          ORG_ID=$(echo "$ORG_RAW" | grep -o '{.*}' | jq -r '.data.organization.id // empty')
+          # Extract Org ID
+          ORG_ID=$(./scripts/01-get_org_id.sh | grep -o '{.*}' | jq -r '.data.organization.id // empty')
+          
+          # Extract Source ID
+          SOURCE_ID=$(./scripts/02-create_migration_source_id.sh | grep -o '{.*}' | jq -r '.data.createMigrationSource.migrationSource.id // empty')
 
-          echo "--- 2. Fetching Source ID ---"
-          SOURCE_RAW=$(./scripts/02-create_migration_source_id.sh 2>&1)
-          echo "$SOURCE_RAW"
-          # Extract ID using grep and jq
-          SOURCE_ID=$(echo "$SOURCE_RAW" | grep -o '{.*}' | jq -r '.data.createMigrationSource.migrationSource.id // empty')
+          # Strict Validation
+          if [[ -z "$ORG_ID" || "$ORG_ID" == "null" ]]; then echo "❌ Failed to capture ORG_ID"; exit 1; fi
+          if [[ -z "$SOURCE_ID" || "$SOURCE_ID" == "null" ]]; then echo "❌ Failed to capture SOURCE_ID"; exit 1; fi
 
-          # Final Validation
-          if [ -z "$ORG_ID" ] || [ "$ORG_ID" == "null" ]; then
-            echo "❌ ERROR: Captured ORG_ID is empty."
-            exit 1
-          fi
-
-          if [ -z "$SOURCE_ID" ] || [ "$SOURCE_ID" == "null" ]; then
-            echo "❌ ERROR: Captured SOURCE_ID is empty."
-            exit 1
-          fi
-
-          # Save to GitHub Environment
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
           echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
-          echo "✅ IDs successfully saved: Org=$ORG_ID, Source=$SOURCE_ID"   
+
       - name: 🚀 Start Migration
         run: |
-          # Execute migration and capture output
-          ./scripts/03-start_migrate_repo.sh > migration_output.json || true
+          ./scripts/03-start_migrate_repo.sh > migration_output.json
           
-          echo "--- Debug: API Response ---"
-          cat migration_output.json
-          echo "---------------------------"
-
           RM_ID=$(cat migration_output.json | grep -o '{.*}' | jq -r '.data.startRepositoryMigration.repositoryMigration.id // empty')
           
-          if [ -z "$RM_ID" ] || [ "$RM_ID" == "null" ]; then
-            echo "❌ Migration failed to start. Check API response above."
+          if [[ -z "$RM_ID" || "$RM_ID" == "null" ]]; then
+            echo "❌ Migration failed to start. API Response:"
+            cat migration_output.json
             exit 1
           fi
 
@@ -84,9 +65,16 @@ jobs:
             STATUS=$(echo "$RESPONSE" | grep -o '{.*}' | jq -r '.state // .data.node.state')
             
             echo "Current Status: $STATUS"
-            if [ "$STATUS" == "FAILED" ]; then exit 1; fi
-            if [ "$STATUS" != "SUCCEEDED" ]; then sleep 30; fi
+            if [ "$STATUS" == "FAILED" ]; then 
+              echo "❌ Migration Failed!"
+              exit 1
+            fi
+            
+            if [ "$STATUS" != "SUCCEEDED" ]; then
+              sleep 30
+            fi
           done
+          echo "✅ Migration Succeeded!"
 
       - name: 🔍 Generate Mannequin CSV
         run: |
