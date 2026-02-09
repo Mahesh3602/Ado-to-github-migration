@@ -30,19 +30,32 @@ jobs:
 
       - name: 🛠️ Get Org & Source IDs
         run: |
-          # Run scripts and extract ONLY the JSON part using grep
+          echo "--- DEBUG: Fetching Org ID ---"
           ORG_RAW=$(./scripts/01-get_org_id.sh)
+          echo "Raw Output: $ORG_RAW"
           ORG_ID=$(echo "$ORG_RAW" | grep -o '{.*}' | jq -r '.data.organization.id // empty')
           
+          echo "--- DEBUG: Fetching Source ID ---"
           SOURCE_RAW=$(./scripts/02-create_migration_source_id.sh)
+          echo "Raw Output: $SOURCE_RAW"
           SOURCE_ID=$(echo "$SOURCE_RAW" | grep -o '{.*}' | jq -r '.data.createMigrationSource.migrationSource.id // empty')
 
-          if [ -z "$ORG_ID" ] || [ "$ORG_ID" == "null" ]; then echo "❌ Failed ORG_ID"; exit 1; fi
-          if [ -z "$SOURCE_ID" ] || [ "$SOURCE_ID" == "null" ]; then echo "❌ Failed SOURCE_ID"; exit 1; fi
+          # Check and Fail with helpful message
+          if [ -z "$ORG_ID" ]; then
+            echo "❌ ERROR: Could not capture ORG_ID."
+            echo "Check if GITHUB_ORG_NAME is correct and GH_PAT has 'admin:org' scope."
+            exit 1
+          fi
+          
+          if [ -z "$SOURCE_ID" ]; then
+            echo "❌ ERROR: Could not capture SOURCE_ID."
+            echo "Check if ADO_PAT is valid."
+            exit 1
+          fi
 
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
           echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
-          echo "✅ IDs Captured: Org=$ORG_ID, Source=$SOURCE_ID"
+          echo "✅ IDs Captured Successfully."
 
       - name: 🚀 Start Migration
         run: |
