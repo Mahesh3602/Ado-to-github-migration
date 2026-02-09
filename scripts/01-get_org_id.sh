@@ -1,12 +1,22 @@
 #!/bin/bash
 # Usage: ./01-get_org_id.sh
 
-# 1. Load your GitHub PAT
-# Make sure you have GH_PAT=your_token in your migrate_repo.env file
-if [ -f migrate_repo.env ]; then
-    export $(grep -v '^#' migrate_repo.env | xargs)
-else
-    echo "❌ Error: migrate_repo.env not found!"
+# 1. Only try to load the .env file if the variable is missing (Local Testing)
+if [ -z "$GH_PAT" ]; then
+    if [ -f "migrate_repo.env" ]; then
+        export $(grep -v '^#' migrate_repo.env | xargs)
+    elif [ -f "../migrate_repo.env" ]; then
+        export $(grep -v '^#' ../migrate_repo.env | xargs)
+    else
+        # In GitHub Actions, we don't want to exit here!
+        # We only exit if the variable is STILL empty after checking everything.
+        echo "⚠️ Note: migrate_repo.env not found, checking system environment..." >&2
+    fi
+fi
+
+# 2. Final check: If the variable is still empty, THEN exit.
+if [ -z "$GH_PAT" ]; then
+    echo "❌ Error: GH_PAT is not set in .env or environment variables!" >&2
     exit 1
 fi
 
