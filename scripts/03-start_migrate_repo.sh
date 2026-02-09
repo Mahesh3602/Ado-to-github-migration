@@ -1,14 +1,6 @@
 #!/bin/bash
 # Usage: ./02-create_migration_source_id.sh
 
-# 1. Load your Environment Variables
-if [ -f migrate_repo.env ]; then
-    export $(grep -v '^#' migrate_repo.env | xargs)
-else
-    echo "❌ Error: migrate_repo.env not found!"
-    exit 1
-fi
-
 # 2. Define the Query with variable placeholders
 QUERY="mutation {
   startRepositoryMigration(input: {
