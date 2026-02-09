@@ -29,8 +29,15 @@ jobs:
 
       - name: 🛠️ Get Org & Source IDs
         run: |
-          ORG_ID=$(./scripts/01-get_org_id.sh | jq -r '.data.organization.id')
-          SOURCE_ID=$(./scripts/02-create_migration_source_id.sh | jq -r '.data.createMigrationSource.migrationSource.id')
+          # Use 'tail -n 1' to ensure we only pass the last line (the JSON) to jq
+          ORG_ID=$(./scripts/01-get_org_id.sh | grep '{' -A 100 | jq -r '.data.organization.id')
+          SOURCE_ID=$(./scripts/02-create_migration_source_id.sh | grep '{' -A 100 | jq -r '.data.createMigrationSource.migrationSource.id')
+          
+          if [ "$ORG_ID" == "null" ] || [ "$SOURCE_ID" == "null" ]; then
+            echo "❌ Failed to capture IDs. Check script output."
+            exit 1
+          fi
+
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
           echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
 
