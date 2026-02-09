@@ -1,0 +1,21 @@
+# export ADO_PAT="your_azure_devops_pat"
+# export GH_PAT="your_github_personal_access_token"
+
+
+## below are the names of 2 repositories, one in Azure DevOps and another in GitHub. You can change it as per your need. Make sure to create an empty repository in GitHub before running the migration.
+# export ADO_REPO_URL="<Your Azure DevOps Repo URL>" # e.g. https://dev.azure.com/your_organization/your_project/_git/your_repo
+export ADO_REPO_URL="URL"
+# export GITHUB_ORG_NAME="<Your GitHub Organization Name>" # e.g. your_github_org
+export GIT_REPO_NAME="sample9"
+
+# export GITHUB_ORG_NAME="<Your GitHub Organization Name>" # e.g. your_github_org
+export GITHUB_ORG_NAME="voting-app-production"
+
+# after running 01-get_org_id.sh #update the resulting ORG_ID here
+export ORG_ID="TOKEN_ID"
+
+# after running 02-create_migration_source_id.sh #update the resulting SOURCE_ID here
+export SOURCE_ID="TOKEN_ID"
+
+# after running 03-start_migrtae_repo.sh #update the resulting MIGRATION_ID here
+export MIGRATION_ID="TOKEN_ID" 

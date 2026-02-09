@@ -1,0 +1,36 @@
+# === macOS System Files ===
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# === Azure Pipelines / Agent Files ===
+# If you ever accidentally copy your 'myagent' folder into the repo
+_work/
+externals/
+diag/
+.agent
+.credentials
+.credentials_rsaparams
+
+# === Development / Build Artifacts ===
+node_modules/
+publish/
+bin/
+obj/
+*.log
+
+# === Docker ===
+.dockerignore
+
+# === GitHub Specific ===
+# We do NOT ignore .github/workflows/*.yml 
+# But we might ignore local action testing files if you use 'act'
+.act/
+mannequins.csv
+*.env
+
+# Python Virtual Environment
+venv/
+.venv/
+env/
+ENV/

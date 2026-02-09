@@ -1,0 +1,63 @@
+name: "1. Migrate Repo & Export Mannequins"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ado_repo_url:
+        description: 'Azure DevOps Repo URL'
+        required: true
+      github_repo_name:
+        description: 'New GitHub Repo Name'
+        required: true
+
+jobs:
+  migration_job:
+    runs-on: ubuntu-latest
+    env:
+      GH_PAT: ${{ secrets.GH_PAT }}
+      ADO_PAT: ${{ secrets.ADO_PAT }}
+      GITHUB_ORG_NAME: ${{ secrets.GITHUB_ORG_NAME }}
+      ADO_REPO_URL: ${{ github.event.inputs.ado_repo_url }}
+      GIT_REPO_NAME: ${{ github.event.inputs.github_repo_name }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔑 Grant Permissions
+        run: chmod +x scripts/*.sh
+
+      - name: 🛠️ Get Org & Source IDs
+        run: |
+          ORG_ID=$(./scripts/01-get_org_id.sh | jq -r '.data.organization.id')
+          SOURCE_ID=$(./scripts/02-create_migration_source_id.sh | jq -r '.data.createMigrationSource.migrationSource.id')
+          echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
+          echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
+
+      - name: 🚀 Start Migration
+        run: |
+          ./scripts/03-start_migrate_repo.sh > migration_output.json
+          RM_ID=$(jq -r '.data.startRepositoryMigration.repositoryMigration.id' migration_output.json)
+          echo "MIGRATION_ID=$RM_ID" >> $GITHUB_ENV
+
+      - name: ⏳ Wait for SUCCEEDED Status
+        run: |
+          STATUS="QUEUED"
+          while [[ "$STATUS" != "SUCCEEDED" && "$STATUS" != "FAILED" ]]; do
+            RESPONSE=$(./scripts/04-check_status.sh)
+            STATUS=$(echo $RESPONSE | jq -r '.state')
+            echo "Current Status: $STATUS"
+            if [ "$STATUS" == "FAILED" ]; then exit 1; fi
+            [ "$STATUS" != "SUCCEEDED" ] && sleep 30
+          done
+
+      - name: 🔍 Generate Mannequin CSV
+        run: |
+          pip install requests
+          python3 scripts/05-generate_mannequins.py
+
+      - name: 📤 Upload CSV for Manual Edit
+        uses: actions/upload-artifact@v4
+        with:
+          name: mannequins-to-edit
+          path: mannequins.csv # The python script creates this in the root usually

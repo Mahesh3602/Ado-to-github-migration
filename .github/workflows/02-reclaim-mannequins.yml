@@ -1,0 +1,35 @@
+name: "2. Reclaim Mannequins"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reclaim_job:
+    runs-on: ubuntu-latest
+    env:
+      GH_PAT: ${{ secrets.GH_PAT }}
+      GITHUB_ORG_NAME: ${{ secrets.GITHUB_ORG_NAME }}
+
+    steps:
+      - name: Checkout Updated Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: 🔗 Run Reclamation Script
+        run: |
+          # Check if mannequins.csv is in root or scripts/
+          if [ -f "mannequins.csv" ]; then
+            python3 scripts/reclaim_users.py
+          elif [ -f "scripts/mannequins.csv" ]; then
+             python3 scripts/reclaim_users.py
+          else
+            echo "❌ Error: mannequins.csv not found."
+            exit 1
+          fi
