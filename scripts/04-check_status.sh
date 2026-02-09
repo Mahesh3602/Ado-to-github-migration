@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# 1. Load the variables from your env file
-source migrate_repo.env
 
 # 2. Check the status using the MIGRATION_ID from your env
 QUERY="query {
