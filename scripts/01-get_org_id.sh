@@ -1,37 +1,39 @@
 #!/bin/bash
-# Usage: ./01-get_org_id.sh
 
-# 1. Only try to load the .env file if the variable is missing (Local Testing)
+# 1. Environment/Env File Logic
 if [ -z "$GH_PAT" ]; then
     if [ -f "migrate_repo.env" ]; then
         export $(grep -v '^#' migrate_repo.env | xargs)
     elif [ -f "../migrate_repo.env" ]; then
         export $(grep -v '^#' ../migrate_repo.env | xargs)
     else
-        # In GitHub Actions, we don't want to exit here!
-        # We only exit if the variable is STILL empty after checking everything.
         echo "⚠️ Note: migrate_repo.env not found, checking system environment..." >&2
     fi
 fi
 
-# 2. Final check: If the variable is still empty, THEN exit.
+# 2. Final check for credentials and Org Name
 if [ -z "$GH_PAT" ]; then
-    echo "❌ Error: GH_PAT is not set in .env or environment variables!" >&2
+    echo "❌ Error: GH_PAT is not set!" >&2
     exit 1
 fi
 
-# 2. Define the Query
-QUERY='query {
-  organization(login: "voting-app-production") {
+if [ -z "$GITHUB_ORG_NAME" ]; then
+    echo "❌ Error: GITHUB_ORG_NAME is not set!" >&2
+    exit 1
+fi
+
+# 3. Define the Query (Using the Variable instead of hardcoded name)
+QUERY="query {
+  organization(login: \"$GITHUB_ORG_NAME\") {
     id
   }
-}'
+}"
 
-# 3. Use jq to package the query and send it
-# The -s flag makes curl silent, -d sends the data
+# 4. Package and send
 JSON_DATA=$(jq -n --arg q "$QUERY" '{query: $q}')
 
-echo "🔍 Fetching Organization ID..."
+# Sending status to stderr so it doesn't mess up the JSON output
+echo "🔍 Fetching Organization ID for $GITHUB_ORG_NAME..." >&2
 
 curl -s -H "Authorization: Bearer $GH_PAT" \
      -X POST \
