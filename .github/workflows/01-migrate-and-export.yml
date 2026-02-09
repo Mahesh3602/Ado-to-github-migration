@@ -16,7 +16,7 @@ jobs:
     env:
       GH_PAT: ${{ secrets.GH_PAT }}
       ADO_PAT: ${{ secrets.ADO_PAT }}
-      GITHUB_ORG_NAME: ${{ secrets.GITHUB_ORG_NAME }}
+      GITHUB_ORG_NAME: ${{ secrets.ORG_NAME }}
       ADO_REPO_URL: ${{ github.event.inputs.ado_repo_url }}
       GIT_REPO_NAME: ${{ github.event.inputs.github_repo_name }}
 
