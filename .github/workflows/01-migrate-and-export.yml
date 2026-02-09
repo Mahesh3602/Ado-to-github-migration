@@ -14,6 +14,7 @@ jobs:
   migration_job:
     runs-on: ubuntu-latest
     env:
+      # Secrets mapped to Env Variables
       GH_PAT: ${{ secrets.GH_PAT }}
       ADO_PAT: ${{ secrets.ADO_PAT }}
       GITHUB_ORG_NAME: ${{ secrets.ORG_NAME }}
@@ -28,43 +29,71 @@ jobs:
         run: chmod +x scripts/*.sh
 
       - name: 🛠️ Get Org & Source IDs
+        id: ids
         run: |
-          # Use 'tail -n 1' to ensure we only pass the last line (the JSON) to jq
-          ORG_ID=$(./scripts/01-get_org_id.sh | grep '{' -A 100 | jq -r '.data.organization.id')
-          SOURCE_ID=$(./scripts/02-create_migration_source_id.sh | grep '{' -A 100 | jq -r '.data.createMigrationSource.migrationSource.id')
+          # Fetch Org ID and filter out non-JSON text
+          ORG_RAW=$(./scripts/01-get_org_id.sh)
+          ORG_ID=$(echo "$ORG_RAW" | grep -o '{.*}' | jq -r '.data.organization.id // empty')
           
-          if [ "$ORG_ID" == "null" ] || [ "$SOURCE_ID" == "null" ]; then
-            echo "❌ Failed to capture IDs. Check script output."
-            exit 1
-          fi
+          # Fetch Source ID and filter out non-JSON text
+          SOURCE_RAW=$(./scripts/02-create_migration_source_id.sh)
+          SOURCE_ID=$(echo "$SOURCE_RAW" | grep -o '{.*}' | jq -r '.data.createMigrationSource.migrationSource.id // empty')
 
+          # Validation
+          if [ -z "$ORG_ID" ]; then echo "❌ Failed to capture ORG_ID"; exit 1; fi
+          if [ -z "$SOURCE_ID" ]; then echo "❌ Failed to capture SOURCE_ID"; exit 1; fi
+
+          # Export to Environment
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
           echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
+          echo "✅ IDs Captured: Org=$ORG_ID, Source=$SOURCE_ID"
 
       - name: 🚀 Start Migration
         run: |
+          # Run script and save output
           ./scripts/03-start_migrate_repo.sh > migration_output.json
-          RM_ID=$(jq -r '.data.startRepositoryMigration.repositoryMigration.id' migration_output.json)
-          echo "MIGRATION_ID=$RM_ID" >> $GITHUB_ENV
+          
+          # Extract Migration ID (RM_...)
+          RM_ID=$(cat migration_output.json | grep -o '{.*}' | jq -r '.data.startRepositoryMigration.repositoryMigration.id // empty')
+          
+          if [ -z "$RM_ID" ]; then 
+            echo "❌ Migration failed to start. Output:"
+            cat migration_output.json
+            exit 1
+          fi
 
-      - name: ⏳ Wait for SUCCEEDED Status
+          echo "MIGRATION_ID=$RM_ID" >> $GITHUB_ENV
+          echo "🚀 Migration Started: $RM_ID"
+
+      - name: ⏳ Wait for Completion
         run: |
           STATUS="QUEUED"
           while [[ "$STATUS" != "SUCCEEDED" && "$STATUS" != "FAILED" ]]; do
+            # We use the MIGRATION_ID exported in the previous step
             RESPONSE=$(./scripts/04-check_status.sh)
-            STATUS=$(echo $RESPONSE | jq -r '.state')
+            STATUS=$(echo "$RESPONSE" | grep -o '{.*}' | jq -r '.state')
+            
             echo "Current Status: $STATUS"
-            if [ "$STATUS" == "FAILED" ]; then exit 1; fi
-            [ "$STATUS" != "SUCCEEDED" ] && sleep 30
+            if [ "$STATUS" == "FAILED" ]; then 
+              echo "❌ Migration Failed!"
+              exit 1
+            fi
+            
+            if [ "$STATUS" != "SUCCEEDED" ]; then
+              echo "Waiting 30 seconds..."
+              sleep 30
+            fi
           done
+          echo "✅ Migration Succeeded!"
 
       - name: 🔍 Generate Mannequin CSV
         run: |
           pip install requests
+          # This script will now use GITHUB_ORG_NAME from the env
           python3 scripts/05-generate_mannequins.py
 
       - name: 📤 Upload CSV for Manual Edit
         uses: actions/upload-artifact@v4
         with:
           name: mannequins-to-edit
-          path: mannequins.csv # The python script creates this in the root usually
+          path: mannequins.csv
