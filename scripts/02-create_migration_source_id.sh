@@ -5,7 +5,7 @@
 if [ -f migrate_repo.env ]; then
     export $(grep -v '^#' migrate_repo.env | xargs)
 else
-    echo "❌ Error: migrate_repo.env not found!"
+    echo "❌ Error: migrate_repo.env not found!" >&2
     exit 1
 fi
 
@@ -31,7 +31,7 @@ JSON_DATA=$(jq -n \
   --arg id "$ORG_ID" \
   '{query: $q, variables: {ownerId: $id}}')
 
-echo "🚀 Registering Migration Source..."
+echo "🚀 Registering Migration Source..." >&2
 
 # 4. Execute the API call
 curl -s -H "Authorization: Bearer $GH_PAT" \
