@@ -56,7 +56,8 @@ jobs:
           # Save to GitHub Environment
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
           echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
-          echo "✅ IDs successfully saved: Org=$ORG_ID, Source=$SOURCE_ID"      - name: 🚀 Start Migration
+          echo "✅ IDs successfully saved: Org=$ORG_ID, Source=$SOURCE_ID"   
+      - name: 🚀 Start Migration
         run: |
           # Execute migration and capture output
           ./scripts/03-start_migrate_repo.sh > migration_output.json || true
