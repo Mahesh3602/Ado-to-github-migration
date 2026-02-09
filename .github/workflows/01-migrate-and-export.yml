@@ -30,28 +30,33 @@ jobs:
 
       - name: 🛠️ Get Org & Source IDs
         run: |
-          echo "--- DEBUG: Fetching Org ID ---"
-          # Adding '|| true' prevents the workflow from crashing here
-          ORG_RAW=$(./scripts/01-get_org_id.sh 2>&1) || echo "Script 01 crashed with exit code $?"
-          echo "Raw Output: $ORG_RAW"
-          
-          echo "--- DEBUG: Fetching Source ID ---"
-          SOURCE_RAW=$(./scripts/02-create_migration_source_id.sh 2>&1) || echo "Script 02 crashed with exit code $?"
-          echo "Raw Output: $SOURCE_RAW"
+          echo "--- 1. Fetching Org ID ---"
+          ORG_RAW=$(./scripts/01-get_org_id.sh 2>&1)
+          echo "$ORG_RAW"
+          # Extract ID using grep and jq
+          ORG_ID=$(echo "$ORG_RAW" | grep -o '{.*}' | jq -r '.data.organization.id // empty')
 
-          # Extraction
-          ORG_ID=$(echo "$ORG_RAW" | grep -o '{.*}' | jq -r '.data.organization.id // empty' 2>/dev/null || echo "")
-          SOURCE_ID=$(echo "$SOURCE_RAW" | grep -o '{.*}' | jq -r '.data.createMigrationSource.migrationSource.id // empty' 2>/dev/null || echo "")
+          echo "--- 2. Fetching Source ID ---"
+          SOURCE_RAW=$(./scripts/02-create_migration_source_id.sh 2>&1)
+          echo "$SOURCE_RAW"
+          # Extract ID using grep and jq
+          SOURCE_ID=$(echo "$SOURCE_RAW" | grep -o '{.*}' | jq -r '.data.createMigrationSource.migrationSource.id // empty')
 
-          if [ -z "$ORG_ID" ]; then
-            echo "❌ ERROR: Could not capture ORG_ID."
+          # Final Validation
+          if [ -z "$ORG_ID" ] || [ "$ORG_ID" == "null" ]; then
+            echo "❌ ERROR: Captured ORG_ID is empty."
             exit 1
           fi
-          
+
+          if [ -z "$SOURCE_ID" ] || [ "$SOURCE_ID" == "null" ]; then
+            echo "❌ ERROR: Captured SOURCE_ID is empty."
+            exit 1
+          fi
+
+          # Save to GitHub Environment
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
           echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
-          echo "✅ IDs Captured Successfully."
-      - name: 🚀 Start Migration
+          echo "✅ IDs successfully saved: Org=$ORG_ID, Source=$SOURCE_ID"      - name: 🚀 Start Migration
         run: |
           # Execute migration and capture output
           ./scripts/03-start_migrate_repo.sh > migration_output.json || true
