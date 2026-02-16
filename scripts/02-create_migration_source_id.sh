@@ -1,32 +1,23 @@
 #!/bin/bash
-# Usage: ./02-create_migration_source_id.sh
+[ -f migrate_repo.env ] && export $(grep -v '^#' migrate_repo.env | xargs)
 
-# 2. Define the Query with a variable placeholder ($ownerId)
-# We use a 'heredoc' to keep the query readable
-QUERY='mutation($ownerId: ID!) {
+QUERY='mutation($ownerId: ID!, $name: String!) {
   createMigrationSource(input: {
-    name: "Azure DevOps Source",
+    name: $name,
     url: "https://dev.azure.com",
     ownerId: $ownerId,
     type: AZURE_DEVOPS
   }) {
-    migrationSource {
-      id
-    }
+    migrationSource { id }
   }
 }'
 
-# 3. Use jq to safely package the query AND the variable
-# This ensures $ORG_ID is expanded by the shell and safely injected into the JSON
 JSON_DATA=$(jq -n \
   --arg q "$QUERY" \
   --arg id "$ORG_ID" \
-  '{query: $q, variables: {ownerId: $id}}')
+  --arg name "Source-$GITHUB_ORG_NAME" \
+  '{query: $q, variables: {ownerId: $id, name: $name}}')
 
-echo "🚀 Registering Migration Source..." >&2
-
-# 4. Execute the API call
 curl -s -H "Authorization: Bearer $GH_PAT" \
-     -X POST \
-     -d "$JSON_DATA" \
-     https://api.github.com/graphql | jq .
+     -X POST -d "$JSON_DATA" \
+     https://api.github.com/graphql

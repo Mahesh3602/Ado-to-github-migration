@@ -27,72 +27,63 @@ jobs:
       - name: 🔑 Grant Permissions
         run: chmod +x scripts/*.sh
 
-      - name: 🛠️ Get Org & Source IDs
+      - name: 🔍 Step 1: Get Organization ID
         run: |
-          # Run script and capture full output
           ORG_JSON=$(./scripts/01-get_org_id.sh)
-          echo "Debug Org Response: $ORG_JSON" # This helps you see what actually came back
+          ORG_ID=$(echo "$ORG_JSON" | jq -r '.data.organization.id // empty')
           
-          # Use jq directly on the variable. -e sets exit code if path not found.
-          ORG_ID=$(echo "$ORG_JSON" | jq -r '.data.organization.id // .id // empty')
-          
-          SOURCE_JSON=$(./scripts/02-create_migration_source_id.sh)
-          SOURCE_ID=$(echo "$SOURCE_JSON" | jq -r '.data.createMigrationSource.migrationSource.id // .id // empty')
-
-          # Validation
-          if [[ -z "$ORG_ID" || "$ORG_ID" == "null" ]]; then 
-            echo "❌ Failed to capture ORG_ID. Check if GH_PAT has 'admin:org' scope."
+          if [[ -z "$ORG_ID" || "$ORG_ID" == "null" ]]; then
+            echo "❌ Error: Could not resolve Organization ID."
+            echo "API Response: $ORG_JSON"
             exit 1
           fi
-          
-          if [[ -z "$SOURCE_ID" || "$SOURCE_ID" == "null" ]]; then 
-            echo "❌ Failed to capture SOURCE_ID."
-            exit 1
-          fi
-
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
-          echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
+          echo "✅ Found ORG_ID: $ORG_ID"
 
-      - name: 🚀 Start Migration
+      - name: 🛠️ Step 2: Create Migration Source
+        run: |
+          SOURCE_JSON=$(./scripts/02-create_migration_source_id.sh)
+          SOURCE_ID=$(echo "$SOURCE_JSON" | jq -r '.data.createMigrationSource.migrationSource.id // empty')
+
+          if [[ -z "$SOURCE_ID" || "$SOURCE_ID" == "null" ]]; then
+            echo "❌ Error: Failed to create Migration Source."
+            echo "API Response: $SOURCE_JSON"
+            exit 1
+          fi
+          echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
+          echo "✅ Created SOURCE_ID: $SOURCE_ID"
+
+      - name: 🚀 Step 3: Start Migration
         run: |
           ./scripts/03-start_migrate_repo.sh > migration_output.json
-          
-          RM_ID=$(cat migration_output.json | grep -o '{.*}' | jq -r '.data.startRepositoryMigration.repositoryMigration.id // empty')
+          RM_ID=$(cat migration_output.json | jq -r '.data.startRepositoryMigration.repositoryMigration.id // empty')
           
           if [[ -z "$RM_ID" || "$RM_ID" == "null" ]]; then
-            echo "❌ Migration failed to start. API Response:"
+            echo "❌ Migration failed to start."
             cat migration_output.json
             exit 1
           fi
-
           echo "MIGRATION_ID=$RM_ID" >> $GITHUB_ENV
           echo "🚀 Migration Started: $RM_ID"
 
-      - name: ⏳ Wait for Completion
+      - name: ⏳ Step 4: Wait for Completion
         run: |
           STATUS="QUEUED"
           while [[ "$STATUS" != "SUCCEEDED" && "$STATUS" != "FAILED" ]]; do
             RESPONSE=$(./scripts/04-check_status.sh)
-            STATUS=$(echo "$RESPONSE" | grep -o '{.*}' | jq -r '.state // .data.node.state')
-            
+            STATUS=$(echo "$RESPONSE" | jq -r '.data.node.state // .state')
             echo "Current Status: $STATUS"
-            if [ "$STATUS" == "FAILED" ]; then 
-              echo "❌ Migration Failed!"
-              exit 1
-            fi
-            
-            if [ "$STATUS" != "SUCCEEDED" ]; then
-              sleep 30
-            fi
+            [[ "$STATUS" == "FAILED" ]] && exit 1
+            [[ "$STATUS" != "SUCCEEDED" ]] && sleep 30
           done
           echo "✅ Migration Succeeded!"
 
-      - name: 🔍 Generate Mannequin CSV
+      - name: 🔍 Step 5: Generate Mannequin CSV
         run: |
           pip install requests
           python3 scripts/05-generate_mannequins.py
 
-      - name: 📤 Upload CSV
+      - name: 📤 Step 6: Upload CSV
         uses: actions/upload-artifact@v4
         with:
           name: mannequins-to-edit
