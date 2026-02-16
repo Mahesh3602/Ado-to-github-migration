@@ -27,7 +27,7 @@ jobs:
       - name: 🔑 Grant Permissions
         run: chmod +x scripts/*.sh
 
-      - name: 🔍 Step 1: Get Organization ID
+      - name: Get Organization ID
         run: |
           ORG_JSON=$(./scripts/01-get_org_id.sh)
           ORG_ID=$(echo "$ORG_JSON" | jq -r '.data.organization.id // empty')
@@ -40,7 +40,7 @@ jobs:
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
           echo "✅ Found ORG_ID: $ORG_ID"
 
-      - name: 🛠️ Step 2: Create Migration Source
+      - name: Create Migration Source
         run: |
           SOURCE_JSON=$(./scripts/02-create_migration_source_id.sh)
           SOURCE_ID=$(echo "$SOURCE_JSON" | jq -r '.data.createMigrationSource.migrationSource.id // empty')
@@ -53,7 +53,7 @@ jobs:
           echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
           echo "✅ Created SOURCE_ID: $SOURCE_ID"
 
-      - name: 🚀 Step 3: Start Migration
+      - name: Start Migration
         run: |
           ./scripts/03-start_migrate_repo.sh > migration_output.json
           RM_ID=$(cat migration_output.json | jq -r '.data.startRepositoryMigration.repositoryMigration.id // empty')
@@ -66,7 +66,7 @@ jobs:
           echo "MIGRATION_ID=$RM_ID" >> $GITHUB_ENV
           echo "🚀 Migration Started: $RM_ID"
 
-      - name: ⏳ Step 4: Wait for Completion
+      - name: Wait for Completion
         run: |
           STATUS="QUEUED"
           while [[ "$STATUS" != "SUCCEEDED" && "$STATUS" != "FAILED" ]]; do
@@ -78,13 +78,14 @@ jobs:
           done
           echo "✅ Migration Succeeded!"
 
-      - name: 🔍 Step 5: Generate Mannequin CSV
+      - name: Generate Mannequin CSV
         run: |
           pip install requests
           python3 scripts/05-generate_mannequins.py
 
-      - name: 📤 Step 6: Upload CSV
+      - name: Upload CSV
         uses: actions/upload-artifact@v4
         with:
           name: mannequins-to-edit
           path: mannequins.csv
+
