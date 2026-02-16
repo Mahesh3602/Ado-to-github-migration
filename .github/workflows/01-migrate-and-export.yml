@@ -29,15 +29,26 @@ jobs:
 
       - name: 🛠️ Get Org & Source IDs
         run: |
-          # Extract Org ID
-          ORG_ID=$(./scripts/01-get_org_id.sh | grep -o '{.*}' | jq -r '.data.organization.id // empty')
+          # Run script and capture full output
+          ORG_JSON=$(./scripts/01-get_org_id.sh)
+          echo "Debug Org Response: $ORG_JSON" # This helps you see what actually came back
           
-          # Extract Source ID
-          SOURCE_ID=$(./scripts/02-create_migration_source_id.sh | grep -o '{.*}' | jq -r '.data.createMigrationSource.migrationSource.id // empty')
+          # Use jq directly on the variable. -e sets exit code if path not found.
+          ORG_ID=$(echo "$ORG_JSON" | jq -r '.data.organization.id // .id // empty')
+          
+          SOURCE_JSON=$(./scripts/02-create_migration_source_id.sh)
+          SOURCE_ID=$(echo "$SOURCE_JSON" | jq -r '.data.createMigrationSource.migrationSource.id // .id // empty')
 
-          # Strict Validation
-          if [[ -z "$ORG_ID" || "$ORG_ID" == "null" ]]; then echo "❌ Failed to capture ORG_ID"; exit 1; fi
-          if [[ -z "$SOURCE_ID" || "$SOURCE_ID" == "null" ]]; then echo "❌ Failed to capture SOURCE_ID"; exit 1; fi
+          # Validation
+          if [[ -z "$ORG_ID" || "$ORG_ID" == "null" ]]; then 
+            echo "❌ Failed to capture ORG_ID. Check if GH_PAT has 'admin:org' scope."
+            exit 1
+          fi
+          
+          if [[ -z "$SOURCE_ID" || "$SOURCE_ID" == "null" ]]; then 
+            echo "❌ Failed to capture SOURCE_ID."
+            exit 1
+          fi
 
           echo "ORG_ID=$ORG_ID" >> $GITHUB_ENV
           echo "SOURCE_ID=$SOURCE_ID" >> $GITHUB_ENV
