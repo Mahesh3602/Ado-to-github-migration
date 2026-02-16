@@ -1,20 +1,18 @@
 #!/bin/bash
+# scripts/04-check_status.sh
 
-
-# 2. Check the status using the MIGRATION_ID from your env
-QUERY="query {
-  node(id: \"$MIGRATION_ID\") {
+QUERY='query($id: ID!) {
+  node(id: $id) {
     ... on RepositoryMigration {
+      id
       state
       failureReason
     }
   }
-}"
+}'
 
-# 3. Package and Send
-JSON_DATA=$(jq -n --arg q "$QUERY" '{query: $q}')
+JSON_DATA=$(jq -n --arg q "$QUERY" --arg id "$MIGRATION_ID" '{query: $q, variables: {id: $id}}')
 
 curl -s -H "Authorization: Bearer $GH_PAT" \
-     -X POST \
-     -d "$JSON_DATA" \
-     https://api.github.com/graphql | jq '.data.node'
+     -X POST -d "$JSON_DATA" \
+     https://api.github.com/graphql

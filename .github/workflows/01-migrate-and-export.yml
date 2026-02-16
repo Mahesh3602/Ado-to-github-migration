@@ -71,9 +71,18 @@ jobs:
           STATUS="QUEUED"
           while [[ "$STATUS" != "SUCCEEDED" && "$STATUS" != "FAILED" ]]; do
             RESPONSE=$(./scripts/04-check_status.sh)
-            STATUS=$(echo "$RESPONSE" | jq -r '.data.node.state // .state')
+            # Capture both status and reason
+            STATUS=$(echo "$RESPONSE" | jq -r '.data.node.state')
+            REASON=$(echo "$RESPONSE" | jq -r '.data.node.failureReason // "No reason provided"')
+            
             echo "Current Status: $STATUS"
-            [[ "$STATUS" == "FAILED" ]] && exit 1
+            
+            if [[ "$STATUS" == "FAILED" ]]; then 
+              echo "❌ Migration Failed!"
+              echo "Reason: $REASON"
+              exit 1
+            fi
+            
             [[ "$STATUS" != "SUCCEEDED" ]] && sleep 30
           done
           echo "✅ Migration Succeeded!"
