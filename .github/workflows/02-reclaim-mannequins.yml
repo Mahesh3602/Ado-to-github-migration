@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_PAT: ${{ secrets.GH_PAT }}
-      GITHUB_ORG_NAME: ${{ secrets.GITHUB_ORG_NAME }}
+      GITHUB_ORG_NAME: ${{ secrets.ORG_NAME }}
 
     steps:
       - name: Checkout Updated Code
