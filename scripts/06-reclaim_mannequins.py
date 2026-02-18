@@ -23,8 +23,8 @@ def reclaim_users():
         print("❌ Error: mannequins.csv not found in root or scripts/ folder.")
         sys.exit(1)
 
-    print(f"📂 Using data from: {csv_path}")
-    print(f"🏢 Targeting Organization: {org_name}")
+    print(f" Using data from: {csv_path}")
+    print(f" Targeting Organization: {org_name}")
 
     # 3. Get the Organization ID
     org_query = f'{{ organization(login: "{org_name}") {{ id }} }}'
@@ -46,10 +46,10 @@ def reclaim_users():
             mannequin_id = row.get('mannequin-id', '').strip()
             
             if not target_username:
-                print(f"⚠️ Skipping {row.get('mannequin-user')}: No target-user provided.")
+                print(f" Skipping {row.get('mannequin-user')}: No target-user provided.")
                 continue
 
-            print(f"🔄 Processing {target_username}...")
+            print(f" Processing {target_username}...")
 
             # 5. Convert Username to Global Node ID
             user_query = f'{{ user(login: "{target_username}") {{ id }} }}'
