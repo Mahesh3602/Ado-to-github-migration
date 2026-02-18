@@ -24,7 +24,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: 🔑 Grant Permissions
+      - name:  Grant Permissions
         run: chmod +x scripts/*.sh
 
       - name: Get Organization ID
@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
           echo "MIGRATION_ID=$RM_ID" >> $GITHUB_ENV
-          echo "🚀 Migration Started: $RM_ID"
+          echo "✅ Migration Started: $RM_ID"
 
       - name: Wait for Completion
         run: |
