@@ -52,7 +52,7 @@ def fetch_mannequins():
     mannequins = data['data']['organization']['mannequins']['nodes']
 
     if not mannequins:
-        print("⚠️ No mannequins found. This usually means all users are already linked.")
+        print(" No mannequins found. This usually means all users are already linked.")
         return
 
     # 3. Write to CSV (Saved in the root for easier GitHub Action artifacts)
